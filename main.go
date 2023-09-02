@@ -6,6 +6,15 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+const (
+	DEFAULT_LEFT_OFFSET = 40
+	DEFAULT_TOP_OFFSET  = 40
+)
+
+var (
+	lineHeight int32 = 0
+)
+
 //var msg strings.Builder
 
 type Editor struct {
@@ -40,6 +49,21 @@ func (e Editor) String() {
 	fmt.Println()
 }
 
+func (e *Editor) addNewLine(fontSize int32) {
+	e.buffer = append(e.buffer, "")
+	e.line += 1
+	e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(fontSize)*float32(e.line)
+	e.cursor.X = DEFAULT_LEFT_OFFSET
+}
+
+func (e *Editor) removeLine(font rl.Font) {
+	if e.line > 0 {
+		e.line -= 1
+		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
+		e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
+	}
+}
+
 func blinkCursor(blink *float64, cursorColor *rl.Color) {
 	if *blink >= 0.5 {
 
@@ -65,42 +89,50 @@ func main() {
 	editor := new(Editor)
 	editor.buffer = append(editor.buffer, "")
 
-	rl.InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window")
+	rl.InitWindow(screenWidth, screenHeight, "Simple Text Editor - Golang")
 
 	rl.SetTargetFPS(60)
 
-	font := rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 96, nil)
+	font := rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 40, nil)
 
 	fontSize := font.BaseSize
-	fontPosition := rl.NewVector2(40, float32(10))
+	lineHeight = fontSize
+	fontPosition := rl.NewVector2(DEFAULT_LEFT_OFFSET, DEFAULT_TOP_OFFSET)
 
 	editor.cursor = fontPosition
 
 	blink := 0.0
 	cursorColor := rl.NewColor(60, 60, 60, 200)
 
+	backspace_timer := 0.0
+
 	for !rl.WindowShouldClose() {
 		blink += float64(rl.GetFrameTime())
+		backspace_timer += float64(rl.GetFrameTime())
 
 		k := rl.GetCharPressed()
 		if k > 0 {
-			//msg.WriteString(fmt.Sprintf("%c", k))
 			editor.addChar(k, font)
 			stopBlink(&blink, &cursorColor)
-			//editor.String()
-			fmt.Println(editor.buffer[0])
+			fmt.Println(font.Recs.Width)
 		}
 
 		if rl.IsKeyPressed(rl.KeyEnter) {
-			//msg.WriteString("\n")
+			fmt.Println(editor.cursor)
+			editor.addNewLine(fontSize)
 		}
 
-		if rl.IsKeyPressed(rl.KeyBackspace) {
+		if rl.IsKeyDown(rl.KeyBackspace) && backspace_timer > 0.1 {
 
 			if len(editor.buffer[editor.line]) > 0 {
 				editor.removeChar(font)
-				stopBlink(&blink, &cursorColor)
+			} else {
+				editor.removeLine(font)
+				fmt.Println(editor.cursor)
 			}
+
+			stopBlink(&blink, &cursorColor)
+			backspace_timer = 0.0
 
 		}
 
@@ -109,11 +141,17 @@ func main() {
 		rl.ClearBackground(rl.RayWhite)
 
 		blinkCursor(&blink, &cursorColor)
-		rl.DrawRectangle(int32(editor.cursor.X), int32(editor.cursor.Y), fontSize/2, fontSize, cursorColor)
+		rl.DrawRectangle(int32(editor.cursor.X), int32(editor.cursor.Y), int32(font.Recs.Width), int32(font.Recs.Height), cursorColor)
 
-		for _, v := range editor.buffer {
+		for i, v := range editor.buffer {
 			// 	// draw text
-			rl.DrawTextEx(font, v, fontPosition, float32(fontSize), 0, rl.Black)
+			linePos := fontPosition
+
+			if i > 0 {
+				linePos.Y = float32(DEFAULT_TOP_OFFSET + lineHeight*int32(i))
+			}
+
+			rl.DrawTextEx(font, v, linePos, float32(fontSize), 0, rl.Black)
 		}
 
 		rl.EndDrawing()
