@@ -8,6 +8,8 @@ For now, it has
 - Support for multiple lines
 - Cursor showing current position
 
+![](editor.gif)
+
 WIP:
 
 - Move cursor thought the text
