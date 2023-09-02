@@ -41,6 +41,11 @@ func (e Editor) String() {
 	fmt.Println()
 }
 
+func stopBlink(blink *float64, color *rl.Color) {
+	*blink = 0.0
+	*color = rl.NewColor(60, 60, 60, 200)
+}
+
 func main() {
 	screenWidth := int32(800)
 	screenHeight := int32(450)
@@ -71,6 +76,7 @@ func main() {
 		if k > 0 {
 			msg.WriteString(fmt.Sprintf("%c", k))
 			editor.addChar(k, font)
+			stopBlink(&blink, &cursorColor)
 			editor.String()
 		}
 
