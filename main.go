@@ -13,25 +13,32 @@ const (
 
 var (
 	lineHeight int32 = 0
+	font       rl.Font
 )
 
 //var msg strings.Builder
 
 type Editor struct {
-	buffer []string
-	line   int
-	cursor rl.Vector2
+	buffer      []string
+	line        int
+	cursor      rl.Vector2
+	cursorIndex int
 }
 
 func (e *Editor) addChar(c int32, font rl.Font) {
 	fmt.Println(e.buffer[e.line])
 	e.buffer[e.line] = e.buffer[e.line] + fmt.Sprintf("%c", c)
-	e.cursor.X += font.Recs.Width
+	e.moveCursorBy(1)
+}
+
+func (e *Editor) moveCursorBy(positions int) {
+	e.cursor.X += font.Recs.Width * float32(positions)
+	e.cursorIndex += positions
 }
 
 func (e *Editor) removeChar(font rl.Font) {
 	e.buffer[e.line] = e.buffer[e.line][0 : len(e.buffer[e.line])-1]
-	e.cursor.X -= font.Recs.Width
+	e.moveCursorBy(-1)
 }
 
 func (e Editor) String() {
@@ -50,10 +57,17 @@ func (e Editor) String() {
 }
 
 func (e *Editor) addNewLine(fontSize int32) {
-	e.buffer = append(e.buffer, "")
+	if e.line < len(e.buffer)-1 {
+		e.buffer = append(e.buffer[:e.line+1], e.buffer[e.line:]...)
+		e.buffer[e.line+1] = ""
+	} else {
+		e.buffer = append(e.buffer, "")
+	}
+
 	e.line += 1
 	e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(fontSize)*float32(e.line)
 	e.cursor.X = DEFAULT_LEFT_OFFSET
+	e.cursorIndex = 0
 }
 
 func (e *Editor) removeLine(font rl.Font) {
@@ -61,6 +75,30 @@ func (e *Editor) removeLine(font rl.Font) {
 		e.line -= 1
 		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
 		e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
+		e.cursorIndex = len(e.buffer[e.line]) - 1
+	}
+}
+
+func (e *Editor) moveToLineBelow() {
+	if e.line < len(e.buffer)-1 {
+		e.line += 1
+		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
+		if !(e.cursorIndex <= len(e.buffer[e.line])-1) {
+			e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
+			e.cursorIndex = len(e.buffer[e.line]) - 1
+		}
+	}
+}
+
+func (e *Editor) moveToLineAbove() {
+	if e.line > 0 {
+		e.line -= 1
+		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
+
+		if !(e.cursorIndex <= len(e.buffer[e.line])-1) {
+			e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
+			e.cursorIndex = len(e.buffer[e.line]) - 1
+		}
 	}
 }
 
@@ -93,7 +131,7 @@ func main() {
 
 	rl.SetTargetFPS(60)
 
-	font := rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 40, nil)
+	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 40, nil)
 
 	fontSize := font.BaseSize
 	lineHeight = fontSize
@@ -134,6 +172,36 @@ func main() {
 			stopBlink(&blink, &cursorColor)
 			backspace_timer = 0.0
 
+		}
+
+		if rl.IsKeyPressed(rl.KeyLeft) {
+			fmt.Println("back", editor.cursorIndex)
+			if editor.cursorIndex > 0 {
+				editor.moveCursorBy(-1)
+			}
+
+		}
+
+		if rl.IsKeyPressed(rl.KeyRight) {
+			fmt.Println("forward", editor.cursorIndex)
+			if editor.cursorIndex <= len(editor.buffer[editor.line])-1 {
+				editor.moveCursorBy(1)
+			}
+		}
+
+		if rl.IsKeyPressed(rl.KeyUp) {
+			editor.moveToLineAbove()
+			fmt.Println("up", editor.line)
+		}
+
+		if rl.IsKeyPressed(rl.KeyDown) {
+			editor.moveToLineBelow()
+			fmt.Println("down", editor.line)
+		}
+
+		if rl.IsKeyPressed(rl.KeyF1) {
+			fmt.Println("buffer:", editor.buffer)
+			fmt.Println("line:", editor.line)
 		}
 
 		rl.BeginDrawing()
