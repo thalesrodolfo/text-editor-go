@@ -7,14 +7,11 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-const (
-	DEFAULT_LEFT_OFFSET = 40
-	DEFAULT_TOP_OFFSET  = 40
-)
-
 var (
-	lineHeight int32 = 0
-	font       rl.Font
+	lineHeight          int32 = 0
+	font                rl.Font
+	DEFAULT_LEFT_OFFSET int32 = 100
+	DEFAULT_TOP_OFFSET  int32 = 10
 )
 
 //var msg strings.Builder
@@ -24,6 +21,10 @@ type Editor struct {
 	line        int
 	cursor      rl.Vector2
 	cursorIndex int
+}
+
+func (e Editor) numberOfLines() int {
+	return len(e.buffer)
 }
 
 func (e *Editor) addChar(c int32, font rl.Font) {
@@ -66,7 +67,7 @@ func (e *Editor) addNewLine(fontSize int32) {
 
 	e.line += 1
 	e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(fontSize)*float32(e.line)
-	e.cursor.X = DEFAULT_LEFT_OFFSET
+	e.cursor.X = float32(DEFAULT_LEFT_OFFSET)
 	e.cursorIndex = 0
 }
 
@@ -121,8 +122,8 @@ func stopBlink(blink *float64, color *rl.Color) {
 }
 
 func main() {
-	screenWidth := int32(800)
-	screenHeight := int32(450)
+	screenWidth := int32(1200)
+	screenHeight := int32(800)
 
 	keywords := make(map[string][]KeywordPos)
 
@@ -133,11 +134,13 @@ func main() {
 
 	rl.SetTargetFPS(60)
 
-	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 40, nil)
+	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 24, nil)
+
+	DEFAULT_LEFT_OFFSET = 6 * int32(font.Recs.Width)
 
 	fontSize := font.BaseSize
 	lineHeight = fontSize
-	fontPosition := rl.NewVector2(DEFAULT_LEFT_OFFSET, DEFAULT_TOP_OFFSET)
+	fontPosition := rl.NewVector2(float32(DEFAULT_LEFT_OFFSET), float32(DEFAULT_TOP_OFFSET))
 
 	editor.cursor = fontPosition
 
@@ -215,6 +218,8 @@ func main() {
 		blinkCursor(&blink, &cursorColor)
 		rl.DrawRectangle(int32(editor.cursor.X), int32(editor.cursor.Y), int32(font.Recs.Width), int32(font.Recs.Height), cursorColor)
 
+		drawLineNumbers(editor)
+
 		for i, v := range editor.buffer {
 			// 	// draw text
 			linePos := fontPosition
@@ -227,7 +232,7 @@ func main() {
 
 			for j, ch := range v {
 				if j > 0 {
-					linePos.X = DEFAULT_LEFT_OFFSET + font.Recs.Width*float32(j)
+					linePos.X = float32(DEFAULT_LEFT_OFFSET) + font.Recs.Width*float32(j)
 				}
 
 				text_color := rl.Black
@@ -250,6 +255,37 @@ func main() {
 	}
 
 	rl.CloseWindow()
+}
+
+func getFormatedLineNumber(i int) string {
+	if i < 10 {
+		return fmt.Sprintf("   %d", i)
+	} else if i < 100 {
+		return fmt.Sprintf("  %d", i)
+	} else if i < 1000 {
+		return fmt.Sprintf(" %d", i)
+	} else {
+		return fmt.Sprintf("%d", i)
+	}
+}
+
+func drawLineNumbers(editor *Editor) {
+	//background
+	//rl.DrawRectangle(0, 0, 40, int32(rl.GetScreenHeight()), rl.NewColor(222, 222, 222, 222))
+	pos := rl.NewVector2(10, float32(DEFAULT_TOP_OFFSET))
+	i := 1
+
+	for i <= editor.numberOfLines() {
+
+		fmt.Println(pos)
+
+		rl.DrawTextEx(font, getFormatedLineNumber(i), pos, float32(font.BaseSize), 0, rl.Gray)
+
+		pos.Y = float32(DEFAULT_TOP_OFFSET) + font.Recs.Height*float32(i)
+
+		i++
+	}
+
 }
 
 func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos) {
