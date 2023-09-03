@@ -12,6 +12,7 @@ var (
 	font                rl.Font
 	DEFAULT_LEFT_OFFSET int32 = 100
 	DEFAULT_TOP_OFFSET  int32 = 10
+	insideBracket       bool  = false
 )
 
 //var msg strings.Builder
@@ -58,17 +59,26 @@ func (e Editor) String() {
 }
 
 func (e *Editor) addNewLine(fontSize int32) {
-	if e.line < len(e.buffer)-1 {
+	if e.line < len(e.buffer)-1 { // if its not the last line add new line between two lines
 		e.buffer = append(e.buffer[:e.line+1], e.buffer[e.line:]...)
 		e.buffer[e.line+1] = ""
-	} else {
+	} else { // add line at the end
 		e.buffer = append(e.buffer, "")
 	}
 
 	e.line += 1
 	e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(fontSize)*float32(e.line)
-	e.cursor.X = float32(DEFAULT_LEFT_OFFSET)
-	e.cursorIndex = 0
+
+	if insideBracket {
+		fmt.Println("Inside bracket")
+		e.buffer[e.line] = e.buffer[e.line] + "    "
+		e.cursorIndex = 4
+		e.cursor.X = float32(DEFAULT_LEFT_OFFSET) + float32(e.cursorIndex)*font.Recs.Width
+	} else {
+		e.cursor.X = float32(DEFAULT_LEFT_OFFSET)
+		e.cursorIndex = 0
+	}
+
 }
 
 func (e *Editor) removeLine(font rl.Font) {
@@ -157,7 +167,23 @@ func main() {
 		if k > 0 {
 			editor.addChar(k, font)
 			stopBlink(&blink, &cursorColor)
-			//fmt.Println(font.Recs.Width)
+
+			if k == 123 { // {
+				fmt.Println("open bracket")
+				insideBracket = true
+			}
+
+			if k == 125 { // }
+				fmt.Println("close bracket")
+				insideBracket = false
+
+				// if we close bracket in a new line, remove identation
+				if strings.TrimLeft(editor.buffer[editor.line], " ") == "}" {
+					editor.buffer[editor.line] = strings.TrimLeft(editor.buffer[editor.line], " ")
+					editor.cursor.X = float32(DEFAULT_LEFT_OFFSET) + font.Recs.Width
+					editor.cursorIndex = 1
+				}
+			}
 		}
 
 		if rl.IsKeyPressed(rl.KeyEnter) {
