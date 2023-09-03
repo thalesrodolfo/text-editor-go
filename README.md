@@ -3,15 +3,18 @@ A simple text editor created using go.
 
 For now, it has
 
-- Write characteres
-- Remove characteres
-- Support for multiple lines
-- Cursor showing current position
+- [x] Write characteres
+- [x] Remove characteres
+- [x] Support for multiple lines
+- [x] Cursor showing current position
+- [x] Move cursor thought the text
+- [x] Add some basic syntax highlighting (only for go files at least for now)
 
-![](editor.gif)
+![](editor_syntax_highlighting.gif)
 
 WIP:
 
-- Move cursor thought the text
-- Insert or delete new charanteres in the middle of a word (currently only at the end)
-- Add some basic highlight (only for go files at least for now)
+- [ ] Syntax Highlighting for strings
+- [ ] Add line numbers
+- [ ] Insert or delete new characters in the middle of a word (currently only at the end)
+
