@@ -229,6 +229,7 @@ func main() {
 			}
 
 			checkKeywords(editor, v, keywords)
+			checkTypes(editor, v, keywords)
 
 			for j, ch := range v {
 				if j > 0 {
@@ -242,6 +243,16 @@ func main() {
 
 						if j >= pos.init && j <= pos.end {
 							text_color = rl.Purple
+						}
+
+					}
+				}
+
+				for _, key := range getTypes() {
+					for _, pos := range keywords[key] {
+
+						if j >= pos.init && j <= pos.end {
+							text_color = rl.Blue
 						}
 
 					}
@@ -277,8 +288,6 @@ func drawLineNumbers(editor *Editor) {
 
 	for i <= editor.numberOfLines() {
 
-		fmt.Println(pos)
-
 		rl.DrawTextEx(font, getFormatedLineNumber(i), pos, float32(font.BaseSize), 0, rl.Gray)
 
 		pos.Y = float32(DEFAULT_TOP_OFFSET) + font.Recs.Height*float32(i)
@@ -298,7 +307,7 @@ func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos
 			posAlreadyExists := false
 
 			if keywords[key] == nil {
-				keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + len(key)})
+				keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + (len(key) - 1)})
 			} else {
 				i := 0
 
@@ -311,7 +320,41 @@ func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos
 
 				if !posAlreadyExists {
 					// add pos
-					keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + len(key)})
+					keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + (len(key) - 1)})
+				}
+			}
+
+		} else {
+			keywords[key] = nil
+		}
+
+	}
+}
+
+func checkTypes(editor *Editor, text string, keywords map[string][]KeywordPos) {
+
+	for _, key := range getTypes() {
+
+		if strings.Contains(text, key) {
+			index := strings.Index(text, key)
+
+			posAlreadyExists := false
+
+			if keywords[key] == nil {
+				keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + (len(key) - 1)})
+			} else {
+				i := 0
+
+				for i < len(keywords[key]) {
+					if keywords[key][i].init == index {
+						posAlreadyExists = true
+					}
+					i++
+				}
+
+				if !posAlreadyExists {
+					// add pos
+					keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + (len(key) - 1)})
 				}
 			}
 
