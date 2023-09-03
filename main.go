@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -26,7 +27,6 @@ type Editor struct {
 }
 
 func (e *Editor) addChar(c int32, font rl.Font) {
-	fmt.Println(e.buffer[e.line])
 	e.buffer[e.line] = e.buffer[e.line] + fmt.Sprintf("%c", c)
 	e.moveCursorBy(1)
 }
@@ -124,6 +124,8 @@ func main() {
 	screenWidth := int32(800)
 	screenHeight := int32(450)
 
+	keywords := make(map[string][]KeywordPos)
+
 	editor := new(Editor)
 	editor.buffer = append(editor.buffer, "")
 
@@ -152,7 +154,7 @@ func main() {
 		if k > 0 {
 			editor.addChar(k, font)
 			stopBlink(&blink, &cursorColor)
-			fmt.Println(font.Recs.Width)
+			//fmt.Println(font.Recs.Width)
 		}
 
 		if rl.IsKeyPressed(rl.KeyEnter) {
@@ -202,6 +204,8 @@ func main() {
 		if rl.IsKeyPressed(rl.KeyF1) {
 			fmt.Println("buffer:", editor.buffer)
 			fmt.Println("line:", editor.line)
+			fmt.Println("cursor pos:", editor.cursorIndex)
+			fmt.Println("keywords:", keywords)
 		}
 
 		rl.BeginDrawing()
@@ -219,11 +223,65 @@ func main() {
 				linePos.Y = float32(DEFAULT_TOP_OFFSET + lineHeight*int32(i))
 			}
 
-			rl.DrawTextEx(font, v, linePos, float32(fontSize), 0, rl.Black)
+			checkKeywords(editor, v, keywords)
+
+			for j, ch := range v {
+				if j > 0 {
+					linePos.X = DEFAULT_LEFT_OFFSET + font.Recs.Width*float32(j)
+				}
+
+				text_color := rl.Black
+
+				for _, key := range getKeywords() {
+					for _, pos := range keywords[key] {
+
+						if j >= pos.init && j <= pos.end {
+							text_color = rl.Purple
+						}
+
+					}
+				}
+				rl.DrawTextEx(font, string(ch), linePos, float32(fontSize), 0, text_color)
+			}
+
 		}
 
 		rl.EndDrawing()
 	}
 
 	rl.CloseWindow()
+}
+
+func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos) {
+
+	for _, key := range getKeywords() {
+
+		if strings.Contains(text, key) {
+			index := strings.Index(text, key)
+
+			posAlreadyExists := false
+
+			if keywords[key] == nil {
+				keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + len(key)})
+			} else {
+				i := 0
+
+				for i < len(keywords[key]) {
+					if keywords[key][i].init == index {
+						posAlreadyExists = true
+					}
+					i++
+				}
+
+				if !posAlreadyExists {
+					// add pos
+					keywords[key] = append(keywords[key], KeywordPos{editor.line, index, index + len(key)})
+				}
+			}
+
+		} else {
+			keywords[key] = nil
+		}
+
+	}
 }
