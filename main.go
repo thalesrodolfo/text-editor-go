@@ -40,6 +40,7 @@ func (e *Editor) moveCursorBy(positions int) {
 
 func (e *Editor) removeChar(font rl.Font) {
 	e.buffer[e.line] = e.buffer[e.line][0 : len(e.buffer[e.line])-1]
+
 	e.moveCursorBy(-1)
 }
 
@@ -83,10 +84,19 @@ func (e *Editor) addNewLine(fontSize int32) {
 
 func (e *Editor) removeLine(font rl.Font) {
 	if e.line > 0 {
+		e.buffer = append(e.buffer[:e.line], e.buffer[e.line+1:]...)
 		e.line -= 1
 		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
 		e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
-		e.cursorIndex = len(e.buffer[e.line]) - 1
+
+		newPos := len(e.buffer[e.line]) - 1
+
+		if newPos < 0 {
+			newPos = 0
+		}
+
+		fmt.Println("newPos:", newPos)
+		e.cursorIndex = newPos
 	}
 }
 
