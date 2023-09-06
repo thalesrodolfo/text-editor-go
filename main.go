@@ -40,12 +40,7 @@ func (e *Editor) addChar(c int32, font rl.Font) {
 		beforePart := line[:e.cursorIndex]
 		afterPart := line[e.cursorIndex:]
 
-		fmt.Println("beforePart: ", beforePart)
-		fmt.Println("afterPart: ", afterPart)
-
 		newText := beforePart + fmt.Sprintf("%c", c) + afterPart
-
-		fmt.Println(newText)
 
 		e.buffer[e.line] = newText
 		e.moveCursorBy(1)
@@ -58,9 +53,22 @@ func (e *Editor) moveCursorBy(positions int) {
 }
 
 func (e *Editor) removeChar(font rl.Font) {
-	e.buffer[e.line] = e.buffer[e.line][0 : len(e.buffer[e.line])-1]
+	fmt.Println("e.cursorIndex: ", e.cursorIndex)
+	fmt.Println("len line: ", len(e.buffer[e.line]))
 
-	e.moveCursorBy(-1)
+	if e.cursorIndex == len(e.buffer[e.line]) {
+		e.buffer[e.line] = e.buffer[e.line][0 : len(e.buffer[e.line])-1]
+
+		e.moveCursorBy(-1)
+	} else if e.cursorIndex > 0 {
+		line := e.buffer[e.line]
+
+		beforePart := line[:e.cursorIndex-1]
+		afterPart := line[e.cursorIndex:]
+
+		e.buffer[e.line] = beforePart + afterPart
+		e.moveCursorBy(-1)
+	}
 }
 
 func (e Editor) String() {
@@ -108,7 +116,7 @@ func (e *Editor) removeLine(font rl.Font) {
 		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
 		e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
 
-		newPos := len(e.buffer[e.line]) - 1
+		newPos := len(e.buffer[e.line])
 
 		if newPos < 0 {
 			newPos = 0
@@ -171,7 +179,7 @@ func main() {
 
 	rl.InitWindow(screenWidth, screenHeight, "Simple Text Editor - Golang")
 
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(120)
 
 	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 24, nil)
 
@@ -269,6 +277,8 @@ func main() {
 		rl.BeginDrawing()
 
 		rl.ClearBackground(rl.RayWhite)
+
+		rl.DrawFPS(screenWidth-100, screenHeight-20)
 
 		blinkCursor(&blink, &cursorColor)
 		rl.DrawRectangle(int32(editor.cursor.X), int32(editor.cursor.Y), int32(font.Recs.Width), int32(font.Recs.Height), cursorColor)
