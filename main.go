@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -169,6 +170,7 @@ func stopBlink(blink *float64, color *rl.Color) {
 }
 
 func main() {
+	regexString, _ := regexp.Compile(`"(.*?)"|"(.*?)$`)
 	screenWidth := int32(1200)
 	screenHeight := int32(800)
 
@@ -278,6 +280,8 @@ func main() {
 			fmt.Println("line:", editor.line)
 			fmt.Println("cursor pos:", editor.cursorIndex)
 			fmt.Println("keywords:", keywords)
+			pos := regexString.FindStringIndex(editor.buffer[editor.line])
+			fmt.Println(pos)
 		}
 
 		rl.BeginDrawing()
@@ -328,6 +332,15 @@ func main() {
 
 					}
 				}
+
+				list_pos := regexString.FindAllStringIndex(v, 2)
+
+				for _, pos := range list_pos {
+					if len(pos) > 1 && j >= pos[0] && j <= pos[1]-1 {
+						text_color = rl.DarkGreen
+					}
+				}
+
 				rl.DrawTextEx(font, string(ch), linePos, float32(fontSize), 0, text_color)
 			}
 
@@ -369,6 +382,10 @@ func drawLineNumbers(editor *Editor) {
 }
 
 func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos) {
+
+	//regexString, _ := regexp.Compile("\"\w*\"?")
+
+	//match, _ := regexp.String("p([a-z]+)ch", "peach")
 
 	for _, key := range getKeywords() {
 
