@@ -29,8 +29,27 @@ func (e Editor) numberOfLines() int {
 }
 
 func (e *Editor) addChar(c int32, font rl.Font) {
-	e.buffer[e.line] = e.buffer[e.line] + fmt.Sprintf("%c", c)
-	e.moveCursorBy(1)
+
+	// cursor is at the end of the line
+	if e.cursorIndex == len(e.buffer[e.line]) {
+		e.buffer[e.line] = e.buffer[e.line] + fmt.Sprintf("%c", c)
+		e.moveCursorBy(1)
+	} else {
+		line := e.buffer[e.line]
+
+		beforePart := line[:e.cursorIndex]
+		afterPart := line[e.cursorIndex:]
+
+		fmt.Println("beforePart: ", beforePart)
+		fmt.Println("afterPart: ", afterPart)
+
+		newText := beforePart + fmt.Sprintf("%c", c) + afterPart
+
+		fmt.Println(newText)
+
+		e.buffer[e.line] = newText
+		e.moveCursorBy(1)
+	}
 }
 
 func (e *Editor) moveCursorBy(positions int) {
