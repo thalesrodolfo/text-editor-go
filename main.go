@@ -183,7 +183,7 @@ func main() {
 
 	rl.SetTargetFPS(120)
 
-	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 24, nil)
+	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 32, nil)
 
 	DEFAULT_LEFT_OFFSET = 6 * int32(font.Recs.Width)
 

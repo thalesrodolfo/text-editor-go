@@ -11,11 +11,13 @@ For now, it has
 - [x] Add some basic syntax highlighting (only for go files at least for now)
 - [x] Add line numbers
 - [x] Basic identation
+- [x] Home and End keys behaviour
+- [x] Insert or delete new characters in the middle of a word
+- [x] Syntax Highlighting for strings
 
-![](editor_syntax_highlighting.gif)
+![](img/editor.gif)
 
 WIP:
 
-- [ ] Syntax Highlighting for strings
-- [ ] Insert or delete new characters in the middle of a word (currently only at the end)
-
+- [ ] Save file
+- [ ] Open file
