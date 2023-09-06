@@ -223,8 +223,14 @@ func main() {
 			}
 		}
 
+		if rl.IsKeyPressed(rl.KeyEnd) {
+			editor.moveCursorBy(len(editor.buffer[editor.line]) - editor.cursorIndex)
+		}
+		if rl.IsKeyPressed(rl.KeyHome) {
+			editor.moveCursorBy(editor.cursorIndex * -1)
+		}
+
 		if rl.IsKeyPressed(rl.KeyEnter) {
-			fmt.Println(editor.cursor)
 			editor.addNewLine(fontSize)
 		}
 
