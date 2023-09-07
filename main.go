@@ -2,154 +2,29 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+type State int32
+
+const (
+	NORMAL State = iota
+	SAVING
+)
+
 var (
 	lineHeight          int32 = 0
 	font                rl.Font
-	DEFAULT_LEFT_OFFSET int32 = 100
-	DEFAULT_TOP_OFFSET  int32 = 10
-	insideBracket       bool  = false
+	DEFAULT_LEFT_OFFSET int32  = 100
+	DEFAULT_TOP_OFFSET  int32  = 10
+	insideBracket       bool   = false
+	state               State  = NORMAL
+	file                string = ""
 )
-
-//var msg strings.Builder
-
-type Editor struct {
-	buffer      []string
-	line        int
-	cursor      rl.Vector2
-	cursorIndex int
-}
-
-func (e Editor) numberOfLines() int {
-	return len(e.buffer)
-}
-
-func (e *Editor) addChar(c int32, font rl.Font) {
-
-	// cursor is at the end of the line
-	if e.cursorIndex == len(e.buffer[e.line]) {
-		e.buffer[e.line] = e.buffer[e.line] + fmt.Sprintf("%c", c)
-		e.moveCursorBy(1)
-	} else {
-		line := e.buffer[e.line]
-
-		beforePart := line[:e.cursorIndex]
-		afterPart := line[e.cursorIndex:]
-
-		newText := beforePart + fmt.Sprintf("%c", c) + afterPart
-
-		e.buffer[e.line] = newText
-		e.moveCursorBy(1)
-	}
-}
-
-func (e *Editor) moveCursorBy(positions int) {
-	e.cursor.X += font.Recs.Width * float32(positions)
-	e.cursorIndex += positions
-}
-
-func (e *Editor) removeChar(font rl.Font) {
-	fmt.Println("e.cursorIndex: ", e.cursorIndex)
-	fmt.Println("len line: ", len(e.buffer[e.line]))
-
-	if e.cursorIndex == len(e.buffer[e.line]) {
-		e.buffer[e.line] = e.buffer[e.line][0 : len(e.buffer[e.line])-1]
-
-		e.moveCursorBy(-1)
-	} else if e.cursorIndex > 0 {
-		line := e.buffer[e.line]
-
-		beforePart := line[:e.cursorIndex-1]
-		afterPart := line[e.cursorIndex:]
-
-		e.buffer[e.line] = beforePart + afterPart
-		e.moveCursorBy(-1)
-	}
-}
-
-func (e Editor) String() {
-	i := 0
-
-	fmt.Println("Line:", e.line)
-	fmt.Printf("Cursor (%f, %f)\n", e.cursor.X, e.cursor.Y)
-
-	for i < len(e.buffer) {
-		fmt.Print(e.buffer[i])
-
-		i++
-	}
-
-	fmt.Println()
-}
-
-func (e *Editor) addNewLine(fontSize int32) {
-	if e.line < len(e.buffer)-1 { // if its not the last line add new line between two lines
-		e.buffer = append(e.buffer[:e.line+1], e.buffer[e.line:]...)
-		e.buffer[e.line+1] = ""
-	} else { // add line at the end
-		e.buffer = append(e.buffer, "")
-	}
-
-	e.line += 1
-	e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(fontSize)*float32(e.line)
-
-	if insideBracket {
-		fmt.Println("Inside bracket")
-		e.buffer[e.line] = e.buffer[e.line] + "    "
-		e.cursorIndex = 4
-		e.cursor.X = float32(DEFAULT_LEFT_OFFSET) + float32(e.cursorIndex)*font.Recs.Width
-	} else {
-		e.cursor.X = float32(DEFAULT_LEFT_OFFSET)
-		e.cursorIndex = 0
-	}
-
-}
-
-func (e *Editor) removeLine(font rl.Font) {
-	if e.line > 0 {
-		e.buffer = append(e.buffer[:e.line], e.buffer[e.line+1:]...)
-		e.line -= 1
-		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
-		e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
-
-		newPos := len(e.buffer[e.line])
-
-		if newPos < 0 {
-			newPos = 0
-		}
-
-		fmt.Println("newPos:", newPos)
-		e.cursorIndex = newPos
-	}
-}
-
-func (e *Editor) moveToLineBelow() {
-	if e.line < len(e.buffer)-1 {
-		e.line += 1
-		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
-		if !(e.cursorIndex <= len(e.buffer[e.line])-1) {
-			e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
-			e.cursorIndex = len(e.buffer[e.line]) - 1
-		}
-	}
-}
-
-func (e *Editor) moveToLineAbove() {
-	if e.line > 0 {
-		e.line -= 1
-		e.cursor.Y = float32(DEFAULT_TOP_OFFSET) + float32(font.BaseSize)*float32(e.line)
-
-		if !(e.cursorIndex <= len(e.buffer[e.line])-1) {
-			e.cursor.X = float32(DEFAULT_LEFT_OFFSET + int32(len(e.buffer[e.line]))*int32(font.Recs.Width))
-			e.cursorIndex = len(e.buffer[e.line]) - 1
-		}
-	}
-}
 
 func blinkCursor(blink *float64, cursorColor *rl.Color) {
 	if *blink >= 0.5 {
@@ -169,119 +44,84 @@ func stopBlink(blink *float64, color *rl.Color) {
 	*color = rl.NewColor(60, 60, 60, 200)
 }
 
+func saveFile(path string, editor *MainEditor) {
+	file, _ := os.Create(path)
+	defer file.Close()
+
+	for _, v := range editor.buffer {
+		file.WriteString(v)
+		file.WriteString("\n")
+	}
+
+}
+
 func main() {
 	regexString, _ := regexp.Compile(`"(.*?)"|"(.*?)$`)
 	screenWidth := int32(1200)
 	screenHeight := int32(800)
 
-	keywords := make(map[string][]KeywordPos)
-
-	editor := new(Editor)
-	editor.buffer = append(editor.buffer, "")
-
 	rl.InitWindow(screenWidth, screenHeight, "Simple Text Editor - Golang")
-
 	rl.SetTargetFPS(120)
-
 	font = rl.LoadFontEx("fonts/JetBrainsMono-Regular.ttf", 32, nil)
-
 	DEFAULT_LEFT_OFFSET = 6 * int32(font.Recs.Width)
-
 	fontSize := font.BaseSize
 	lineHeight = fontSize
 	fontPosition := rl.NewVector2(float32(DEFAULT_LEFT_OFFSET), float32(DEFAULT_TOP_OFFSET))
 
-	editor.cursor = fontPosition
+	// keywords for syntax highlighting
+	keywords := make(map[string][]KeywordPos)
 
+	// main editor
+	mainEditor := new(MainEditor)
+	mainEditor.buffer = append(mainEditor.buffer, "")
+	mainEditor.cursor = fontPosition
+
+	// save input when saving file
+	saveEditor := new(MainEditor)
+	saveEditor.buffer = append(saveEditor.buffer, "")
+	saveEditor.cursor = rl.NewVector2(0, float32(DEFAULT_TOP_OFFSET))
+
+	// main blink
 	blink := 0.0
+
+	// secondary blink (save input)
+	blinkSearch := 0.0
 	cursorColor := rl.NewColor(60, 60, 60, 200)
 
 	backspace_timer := 0.0
 
 	for !rl.WindowShouldClose() {
 		blink += float64(rl.GetFrameTime())
+		blinkSearch += float64(rl.GetFrameTime())
 		backspace_timer += float64(rl.GetFrameTime())
 
-		k := rl.GetCharPressed()
-		if k > 0 {
-			editor.addChar(k, font)
-			stopBlink(&blink, &cursorColor)
+		if state == NORMAL {
+			mainEditorHandle(mainEditor, font, blink, cursorColor, &backspace_timer)
 
-			if k == 123 { // {
-				fmt.Println("open bracket")
-				insideBracket = true
+		} else {
+			mainEditorHandle(saveEditor, font, blinkSearch, cursorColor, &backspace_timer)
+
+			if rl.IsKeyPressed(rl.KeyEnter) {
+				rootPath, _ := os.Getwd()
+				path := rootPath + string(os.PathSeparator) + saveEditor.buffer[0]
+				fmt.Println(path)
+				saveFile(path, mainEditor)
+				fmt.Println("File saved.")
+				file = path
+				state = NORMAL
 			}
-
-			if k == 125 { // }
-				fmt.Println("close bracket")
-				insideBracket = false
-
-				// if we close bracket in a new line, remove identation
-				if strings.TrimLeft(editor.buffer[editor.line], " ") == "}" {
-					editor.buffer[editor.line] = strings.TrimLeft(editor.buffer[editor.line], " ")
-					editor.cursor.X = float32(DEFAULT_LEFT_OFFSET) + font.Recs.Width
-					editor.cursorIndex = 1
+		}
+		if rl.IsKeyPressed(rl.KeyF5) { // enter saving mode
+			if file == "" { // if not file loaded, open input to save new file
+				if state == SAVING {
+					state = NORMAL
+				} else {
+					state = SAVING
 				}
+			} else { // if file is loaded, just save current file
+				saveFile(file, mainEditor)
+				fmt.Println("File saved.")
 			}
-		}
-
-		if rl.IsKeyPressed(rl.KeyEnd) {
-			editor.moveCursorBy(len(editor.buffer[editor.line]) - editor.cursorIndex)
-		}
-		if rl.IsKeyPressed(rl.KeyHome) {
-			editor.moveCursorBy(editor.cursorIndex * -1)
-		}
-
-		if rl.IsKeyPressed(rl.KeyEnter) {
-			editor.addNewLine(fontSize)
-		}
-
-		if rl.IsKeyDown(rl.KeyBackspace) && backspace_timer > 0.1 {
-
-			if len(editor.buffer[editor.line]) > 0 {
-				editor.removeChar(font)
-			} else {
-				editor.removeLine(font)
-				fmt.Println(editor.cursor)
-			}
-
-			stopBlink(&blink, &cursorColor)
-			backspace_timer = 0.0
-
-		}
-
-		if rl.IsKeyPressed(rl.KeyLeft) {
-			fmt.Println("back", editor.cursorIndex)
-			if editor.cursorIndex > 0 {
-				editor.moveCursorBy(-1)
-			}
-
-		}
-
-		if rl.IsKeyPressed(rl.KeyRight) {
-			fmt.Println("forward", editor.cursorIndex)
-			if editor.cursorIndex <= len(editor.buffer[editor.line])-1 {
-				editor.moveCursorBy(1)
-			}
-		}
-
-		if rl.IsKeyPressed(rl.KeyUp) {
-			editor.moveToLineAbove()
-			fmt.Println("up", editor.line)
-		}
-
-		if rl.IsKeyPressed(rl.KeyDown) {
-			editor.moveToLineBelow()
-			fmt.Println("down", editor.line)
-		}
-
-		if rl.IsKeyPressed(rl.KeyF1) {
-			fmt.Println("buffer:", editor.buffer)
-			fmt.Println("line:", editor.line)
-			fmt.Println("cursor pos:", editor.cursorIndex)
-			fmt.Println("keywords:", keywords)
-			pos := regexString.FindStringIndex(editor.buffer[editor.line])
-			fmt.Println(pos)
 		}
 
 		rl.BeginDrawing()
@@ -290,12 +130,28 @@ func main() {
 
 		rl.DrawFPS(screenWidth-100, screenHeight-20)
 
-		blinkCursor(&blink, &cursorColor)
-		rl.DrawRectangle(int32(editor.cursor.X), int32(editor.cursor.Y), int32(font.Recs.Width), int32(font.Recs.Height), cursorColor)
+		if state == SAVING {
+			label := "Save File: "
+			yPosition := screenHeight - 40
+			xStartPosition := int32(font.Recs.Width) * int32(len(label)+2)
+			// draw search background
+			rl.DrawRectangle(20, yPosition, screenWidth-40, font.Recs.ToInt32().Height, rl.NewColor(200, 200, 45, 255))
+			// blink cursor
+			blinkCursor(&blinkSearch, &cursorColor)
+			// draw cursor block
+			rl.DrawRectangle(xStartPosition+int32(saveEditor.cursor.X), yPosition, int32(font.Recs.Width), int32(font.Recs.Height), cursorColor)
+			// draw save label
+			rl.DrawTextEx(font, label, rl.NewVector2(30, float32(yPosition)), float32(fontSize), 0, rl.Black)
+			// draw save buffer
+			rl.DrawTextEx(font, saveEditor.buffer[0], rl.NewVector2(float32(xStartPosition+4), float32(yPosition)), float32(fontSize), 0, rl.Black)
+		} else {
+			blinkCursor(&blink, &cursorColor)
+			rl.DrawRectangle(int32(mainEditor.cursor.X), int32(mainEditor.cursor.Y), int32(font.Recs.Width), int32(font.Recs.Height), cursorColor)
+		}
 
-		drawLineNumbers(editor)
+		drawLineNumbers(mainEditor)
 
-		for i, v := range editor.buffer {
+		for i, v := range mainEditor.buffer {
 			// 	// draw text
 			linePos := fontPosition
 
@@ -303,8 +159,8 @@ func main() {
 				linePos.Y = float32(DEFAULT_TOP_OFFSET + lineHeight*int32(i))
 			}
 
-			checkKeywords(editor, v, keywords)
-			checkTypes(editor, v, keywords)
+			checkKeywords(mainEditor, v, keywords)
+			checkTypes(mainEditor, v, keywords)
 
 			for j, ch := range v {
 				if j > 0 {
@@ -352,6 +208,90 @@ func main() {
 	rl.CloseWindow()
 }
 
+func mainEditorHandle(editor *MainEditor, font rl.Font, blink float64, cursorColor rl.Color, backspace_timer *float64) {
+	k := rl.GetCharPressed()
+	if k > 0 {
+		editor.addChar(k)
+		stopBlink(&blink, &cursorColor)
+
+		if k == 123 { // {
+			fmt.Println("open bracket")
+			insideBracket = true
+		}
+
+		if k == 125 { // }
+			fmt.Println("close bracket")
+			insideBracket = false
+
+			// if we close bracket in a new line, remove identation
+			if strings.TrimLeft(editor.buffer[editor.line], " ") == "}" {
+				editor.buffer[editor.line] = strings.TrimLeft(editor.buffer[editor.line], " ")
+				editor.cursor.X = float32(DEFAULT_LEFT_OFFSET) + font.Recs.Width
+				editor.cursorIndex = 1
+			}
+		}
+	}
+
+	if rl.IsKeyPressed(rl.KeyEnd) {
+		editor.moveCursorBy(len(editor.buffer[editor.line]) - editor.cursorIndex)
+	}
+	if rl.IsKeyPressed(rl.KeyHome) {
+		editor.moveCursorBy(editor.cursorIndex * -1)
+	}
+
+	if rl.IsKeyPressed(rl.KeyEnter) {
+		editor.addNewLine(font.BaseSize)
+	}
+
+	if rl.IsKeyDown(rl.KeyBackspace) && *backspace_timer > float64(0.1) {
+
+		if len(editor.buffer[editor.line]) > 0 {
+			editor.removeChar()
+		} else {
+			editor.removeLine()
+			fmt.Println(editor.cursor)
+		}
+
+		stopBlink(&blink, &cursorColor)
+		*backspace_timer = float64(0.0)
+
+	}
+
+	if rl.IsKeyPressed(rl.KeyLeft) {
+		fmt.Println("back", editor.cursorIndex)
+		if editor.cursorIndex > 0 {
+			editor.moveCursorBy(-1)
+		}
+
+	}
+
+	if rl.IsKeyPressed(rl.KeyRight) {
+		fmt.Println("forward", editor.cursorIndex)
+		if editor.cursorIndex <= len(editor.buffer[editor.line])-1 {
+			editor.moveCursorBy(1)
+		}
+	}
+
+	if rl.IsKeyPressed(rl.KeyUp) {
+		editor.moveToLineAbove()
+		fmt.Println("up", editor.line)
+	}
+
+	if rl.IsKeyPressed(rl.KeyDown) {
+		editor.moveToLineBelow()
+		fmt.Println("down", editor.line)
+	}
+
+	if rl.IsKeyPressed(rl.KeyF1) {
+		fmt.Println("buffer:", editor.buffer)
+		fmt.Println("line:", editor.line)
+		fmt.Println("cursor pos:", editor.cursorIndex)
+		//fmt.Println("keywords:", keywords)
+		//pos := regexString.FindStringIndex(editor.buffer[editor.line])
+		//fmt.Println(pos)
+	}
+}
+
 func getFormatedLineNumber(i int) string {
 	if i < 10 {
 		return fmt.Sprintf("   %d", i)
@@ -364,13 +304,13 @@ func getFormatedLineNumber(i int) string {
 	}
 }
 
-func drawLineNumbers(editor *Editor) {
+func drawLineNumbers(editor *MainEditor) {
 	//background
 	//rl.DrawRectangle(0, 0, 40, int32(rl.GetScreenHeight()), rl.NewColor(222, 222, 222, 222))
 	pos := rl.NewVector2(10, float32(DEFAULT_TOP_OFFSET))
 	i := 1
 
-	for i <= editor.numberOfLines() {
+	for i <= len(editor.buffer) {
 
 		rl.DrawTextEx(font, getFormatedLineNumber(i), pos, float32(font.BaseSize), 0, rl.Gray)
 
@@ -381,7 +321,7 @@ func drawLineNumbers(editor *Editor) {
 
 }
 
-func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos) {
+func checkKeywords(editor *MainEditor, text string, keywords map[string][]KeywordPos) {
 
 	//regexString, _ := regexp.Compile("\"\w*\"?")
 
@@ -419,7 +359,7 @@ func checkKeywords(editor *Editor, text string, keywords map[string][]KeywordPos
 	}
 }
 
-func checkTypes(editor *Editor, text string, keywords map[string][]KeywordPos) {
+func checkTypes(editor *MainEditor, text string, keywords map[string][]KeywordPos) {
 
 	for _, key := range getTypes() {
 
